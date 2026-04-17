@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import NotFound from "./components/NotFound";
+import API from "./api/api";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -23,7 +24,7 @@ function App() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const res = await axios.get("/api/users/me", {
+          const res = await axios.get(`${API}/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setUser(res.data);
