@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import NotFound from "./components/NotFound";
 import API from "./api/api";
+import ResetPassword from "./pages/ResetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -60,6 +62,11 @@ function App() {
           path="/register"
           element={user ? <Navigate to="/" /> : <Register setUser={setUser} />}
         />
+        <Route
+          path="/forgot-password"
+          element={user ? <Navigate to="/" /> : <ForgotPassword />}
+        />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

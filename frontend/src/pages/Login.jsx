@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import API from "../api/api";
+import { useNavigate, Link } from "react-router-dom";
 
 const Login = ({ setUser }) => {
   const [formData, setFormData] = useState({
@@ -69,6 +69,11 @@ const Login = ({ setUser }) => {
           <button className="w-full bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600 font-medium cursor-pointer">
             Login
           </button>
+          <p className="mt-4 text-center">
+            <Link to="/forgot-password" className="text-blue-500">
+              Forgot Password?
+            </Link>
+          </p>
         </form>
       </div>
     </div>

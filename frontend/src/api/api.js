@@ -1,3 +1,3 @@
-const API = "https://mern-auth-hso4.onrender.com/api/users";
+const API = import.meta.env.VITE_API_URL + "/api/users";
 
 export default API;
