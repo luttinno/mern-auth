@@ -1,7 +1,6 @@
-import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api/api";
+import api from "../api/api";
 
 const Register = ({ setUser }) => {
   const [formData, setFormData] = useState({
@@ -20,9 +19,8 @@ const Register = ({ setUser }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${API}/register`, formData);
-      localStorage.setItem("token", res.data.token);
-      console.log(res.data);
+      // backend sets httpOnly cookie automatically
+      const res = await api.post("/register", formData);
       setUser(res.data);
       navigate("/");
     } catch (error) {
@@ -43,12 +41,12 @@ const Register = ({ setUser }) => {
               Username
             </label>
             <input
-              type="username"
+              type="text"
               name="username"
               value={formData.username}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none focus:border-blue-400"
-              placeholder="Ender your username"
+              placeholder="Enter your username"
               required
               autoComplete="off"
             />
@@ -63,7 +61,7 @@ const Register = ({ setUser }) => {
               value={formData.email}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none focus:border-blue-400"
-              placeholder="Ender your email"
+              placeholder="Enter your email"
               required
               autoComplete="off"
             />
@@ -78,7 +76,7 @@ const Register = ({ setUser }) => {
               value={formData.password}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none focus:border-blue-400"
-              placeholder="Ender your password"
+              placeholder="Enter your password"
               required
             />
           </div>

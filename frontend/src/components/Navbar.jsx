@@ -1,17 +1,22 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../api/api";
 
 const Navbar = ({ user, setUser }) => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await api.post("/logout"); // clears httpOnly cookie on backend
+      setUser(null);
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
   };
 
   return (
-    <nav className="bg-gray-800 p-4 ">
+    <nav className="bg-gray-800 p-4">
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="text-white text-lg font-bold">
           MERN Auth

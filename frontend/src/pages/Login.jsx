@@ -1,7 +1,6 @@
-import axios from "axios";
 import React, { useState } from "react";
-import API from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../api/api";
 
 const Login = ({ setUser }) => {
   const [formData, setFormData] = useState({
@@ -19,10 +18,9 @@ const Login = ({ setUser }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${API}/login`, formData);
-      localStorage.setItem("token", res.data.token);
-      console.log(res.data);
-      setUser(res.data);
+      // cookie is set automatically from backend
+      const res = await api.post("/login", formData);
+      setUser(res.data); // user info from backend
       navigate("/");
     } catch (error) {
       setError(error.response?.data?.message || "Login failed");
@@ -47,11 +45,12 @@ const Login = ({ setUser }) => {
               value={formData.email}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none focus:border-blue-400"
-              placeholder="Ender your email"
+              placeholder="Enter your email"
               required
               autoComplete="off"
             />
           </div>
+
           <div className="mb-6">
             <label className="block text-gray-600 text-sm font-medium mb-1">
               Password
@@ -62,7 +61,7 @@ const Login = ({ setUser }) => {
               value={formData.password}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none focus:border-blue-400"
-              placeholder="Ender your password"
+              placeholder="Enter your password"
               required
             />
           </div>
