@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -16,7 +15,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = [process.env.CLIENT_URL, "http://localhost:5173"];
+const allowedOrigins = [process.env.CLIENT_URL, "http://localhost:5173"].filter(
+  Boolean,
+);
 
 app.use(helmet());
 app.use(cookieParser());
@@ -29,10 +30,11 @@ app.use(
 );
 
 app.use(express.json());
-
-app.use(mongoSanitize());
 app.use(hpp());
-app.use(morgan("dev"));
+
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -41,9 +43,7 @@ const limiter = rateLimit({
 });
 
 // ONLY auth routes
-app.use("/api/users", limiter);
-
-app.use("/api/users", authRouter);
+app.use("/api/users", limiter, authRouter);
 
 app.use(notFound);
 app.use(errorHandler);

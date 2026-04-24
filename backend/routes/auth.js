@@ -30,8 +30,8 @@ const sendToken = (res, user, statusCode) => {
 
   res.cookie("token", token, {
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 
@@ -49,22 +49,18 @@ router.post(
   "/register",
   [
     body("username").trim().notEmpty().withMessage("Username is required"),
-    body("email")
-      .trim()
-      .normalizeEmail()
-      .isEmail()
-      .withMessage("Valid email is required"),
+    body("email").trim().isEmail().withMessage("Valid email is required"),
     body("password")
       .isLength({ min: 6 })
       .withMessage("Password must be at least 6 characters"),
   ],
   asyncHandler(async (req, res) => {
     const errors = validate(req);
-    if (errors) {
-      return res.status(400).json({ errors });
-    }
+    if (errors) return res.status(400).json({ errors });
 
-    const { username, email, password } = req.body;
+    const username = req.body.username;
+    const email = req.body.email?.toLowerCase();
+    const password = req.body.password;
 
     const userExist = await User.findOne({ email });
 
@@ -89,20 +85,15 @@ router.post(
 router.post(
   "/login",
   [
-    body("email")
-      .trim()
-      .normalizeEmail()
-      .isEmail()
-      .withMessage("Valid email is required"),
+    body("email").trim().isEmail().withMessage("Valid email is required"),
     body("password").notEmpty().withMessage("Password is required"),
   ],
   asyncHandler(async (req, res) => {
     const errors = validate(req);
-    if (errors) {
-      return res.status(400).json({ errors });
-    }
+    if (errors) return res.status(400).json({ errors });
 
-    const { email, password } = req.body;
+    const email = req.body.email?.toLowerCase();
+    const password = req.body.password;
 
     const user = await User.findOne({ email });
 
@@ -116,7 +107,7 @@ router.post(
 );
 
 /* =========================
-   LOGIN
+   LOGOUT
 ========================= */
 router.post("/logout", (req, res) => {
   res.cookie("token", "", {
@@ -134,20 +125,14 @@ router.post("/logout", (req, res) => {
 ========================= */
 router.post(
   "/forgot-password",
-  [
-    body("email")
-      .trim()
-      .normalizeEmail()
-      .isEmail()
-      .withMessage("Valid email is required"),
-  ],
+  [body("email").trim().isEmail().withMessage("Valid email is required")],
   asyncHandler(async (req, res) => {
     const errors = validate(req);
     if (errors) {
       return res.status(400).json({ errors });
     }
 
-    const { email } = req.body;
+    const email = req.body.email?.toLowerCase();
 
     const user = await User.findOne({ email });
 

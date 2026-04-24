@@ -9,34 +9,33 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import NotFound from "./components/NotFound";
-import API from "./api/api";
+import api from "./api/api";
 import ResetPassword from "./pages/ResetPassword";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
-  const [isLoading, setIsloading] = useState(true);
-  console.log(user);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const res = await axios.get(`${API}/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setUser(res.data);
-        } catch (error) {
+      setError("");
+      try {
+        // cookie is sent automatically (withCredentials: true)
+        const res = await api.get("/me");
+
+        setUser(res.data);
+      } catch (error) {
+        setUser(null);
+
+        if (error.response?.status !== 401) {
           setError("Failed to fetch user data");
-          localStorage.removeItem("token");
-          console.error(error);
         }
+      } finally {
+        setIsLoading(false);
       }
-      setIsloading(false);
     };
     fetchUser();
   }, []);
