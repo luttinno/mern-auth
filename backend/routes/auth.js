@@ -4,91 +4,160 @@ import crypto from "crypto";
 import { protect } from "../middleware/auth.js";
 import jwt from "jsonwebtoken";
 import sendEmail from "../utils/sendEmail.js";
+import { body, validationResult } from "express-validator";
+import asyncHandler from "express-async-handler";
 
 const router = express.Router();
 
 /* =========================
+   VALIDATION HANDLER
+========================= */
+const validate = (req) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return errors.array().map((err) => err.msg);
+  }
+
+  return null;
+};
+
+/* =========================
+   COOKIE HANDLER
+========================= */
+const sendToken = (res, user, statusCode) => {
+  const token = generateToken(user._id);
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+
+  res.status(statusCode).json({
+    id: user._id,
+    username: user.username,
+    email: user.email,
+  });
+};
+
+/* =========================
    REGISTER
 ========================= */
-router.post("/register", async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: "Please fill all fields" });
+router.post(
+  "/register",
+  [
+    body("username").trim().notEmpty().withMessage("Username is required"),
+    body("email")
+      .trim()
+      .normalizeEmail()
+      .isEmail()
+      .withMessage("Valid email is required"),
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validate(req);
+    if (errors) {
+      return res.status(400).json({ errors });
     }
 
-    const userExist = await User.findOne({ email: email.toLowerCase() });
+    const { username, email, password } = req.body;
+
+    const userExist = await User.findOne({ email });
 
     if (userExist) {
-      return res.status(400).json({ message: "User already exists" });
+      res.status(400);
+      throw new Error("User already exists");
     }
 
     const user = await User.create({
       username,
-      email: email.toLowerCase(),
+      email,
       password,
     });
 
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      token,
-    });
-  } catch (error) {
-    console.error("REGISTER ERROR:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
+    sendToken(res, user, 201);
+  }),
+);
 
 /* =========================
    LOGIN
 ========================= */
-router.post("/login", async (req, res) => {
-  try {
+router.post(
+  "/login",
+  [
+    body("email")
+      .trim()
+      .normalizeEmail()
+      .isEmail()
+      .withMessage("Valid email is required"),
+    body("password").notEmpty().withMessage("Password is required"),
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validate(req);
+    if (errors) {
+      return res.status(400).json({ errors });
+    }
+
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Please fill all fields" });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
 
     if (!user || !(await user.matchPassword(password))) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      res.status(401);
+      throw new Error("Invalid credentials");
     }
 
-    const token = generateToken(user._id);
+    sendToken(res, user, 200);
+  }),
+);
 
-    res.status(200).json({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      token,
-    });
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
+/* =========================
+   LOGIN
+========================= */
+router.post("/logout", (req, res) => {
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expires: new Date(0),
+  });
+
+  res.status(200).json({ message: "Logged out successfully" });
 });
 
 /* =========================
    FORGOT PASSWORD
 ========================= */
-router.post("/forgot-password", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+router.post(
+  "/forgot-password",
+  [
+    body("email")
+      .trim()
+      .normalizeEmail()
+      .isEmail()
+      .withMessage("Valid email is required"),
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validate(req);
+    if (errors) {
+      return res.status(400).json({ errors });
     }
 
-    // generate token
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    // security: never reveal if email exists
+    if (!user) {
+      return res.status(200).json({
+        message: "If that email exists, a reset link has been sent",
+      });
+    }
+
     const resetToken = crypto.randomBytes(32).toString("hex");
 
     const hashedToken = crypto
@@ -112,40 +181,34 @@ router.post("/forgot-password", async (req, res) => {
 
     try {
       await sendEmail(user.email, "Password Reset", html);
-
-      return res.status(200).json({
-        message: "Reset email sent successfully",
-      });
-    } catch (emailError) {
-      console.error("EMAIL ERROR:", emailError);
-
+    } catch (error) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
 
-      return res.status(500).json({
-        message: "Email sending failed",
-        error: emailError.message,
-      });
+      throw new Error("Email sending failed");
     }
-  } catch (error) {
-    console.error("FORGOT PASSWORD ERROR:", error);
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
+
+    res.status(200).json({
+      message: "If that email exists, a reset link has been sent",
     });
-  }
-});
+  }),
+);
 
 /* =========================
    RESET PASSWORD
 ========================= */
-router.post("/reset-password/:token", async (req, res) => {
-  try {
-    const { password } = req.body;
-
-    if (!password) {
-      return res.status(400).json({ message: "Password is required" });
+router.post(
+  "/reset-password/:token",
+  [
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validate(req);
+    if (errors) {
+      return res.status(400).json({ errors });
     }
 
     const hashedToken = crypto
@@ -159,10 +222,11 @@ router.post("/reset-password/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      res.status(400);
+      throw new Error("Invalid or expired token");
     }
 
-    user.password = password;
+    user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
 
@@ -171,21 +235,19 @@ router.post("/reset-password/:token", async (req, res) => {
     res.status(200).json({
       message: "Password reset successful",
     });
-  } catch (error) {
-    console.error("RESET PASSWORD ERROR:", error);
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
+  }),
+);
 
 /* =========================
    ME
 ========================= */
-router.get("/me", protect, (req, res) => {
-  res.status(200).json(req.user);
-});
+router.get(
+  "/me",
+  protect,
+  asyncHandler(async (req, res) => {
+    res.status(200).json(req.user);
+  }),
+);
 
 /* =========================
    JWT
